@@ -105,21 +105,5 @@ footer {
 }
 
 #map .leaflet-tile-pane {
-  filter: grayscale(100%) contrast(1.05) brightness(1.02);
-}
-
-.peak-marker {
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 14px solid #6b6b6b;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
-}
-
-.peak-marker.climbed {
-  border-left-width: 10px;
-  border-right-width: 10px;
-  border-bottom: 18px solid var(--accent);
-  filter: drop-shadow(0 1px 3px rgba(209,123,63,0.9));
+  filter: grayscale(90%) contrast(1.05) brightness(1.03);
 }
