@@ -15,49 +15,15 @@
     attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
   }).addTo(map);
 
-  // --- Build the 4-province union polygon (Como, Lecco, Sondrio, Bergamo) ---
-  var ringsToPoly = function (ring) {
-    var coords = ring.slice();
-    var first = coords[0], last = coords[coords.length - 1];
-    if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
-    return turf.polygon([coords]);
-  };
+  // Mountain territories (data/cells.js) are precomputed offline: a watershed segmentation
+  // seeded at each summit over real SRTM/AWS terrain-tile elevation data, so each cell's
+  // border follows the actual valley floor between two mountains rather than an abstract
+  // straight bisector line. See data/cells.js generation notes in README.
 
-  var provincePolys = Object.keys(window.PROVINCE_RINGS).map(function (k) {
-    return ringsToPoly(window.PROVINCE_RINGS[k]);
-  });
-
-  var provinceUnion = provincePolys[0];
-  for (var i = 1; i < provincePolys.length; i++) {
-    try {
-      provinceUnion = turf.union(provinceUnion, provincePolys[i]);
-    } catch (e) {
-      console.error("union failed", e);
-    }
-  }
-
-  var bbox = turf.bbox(provinceUnion); // [minLon, minLat, maxLon, maxLat] - full 4-province extent, used for clipping
-
-  // Sondrio province reaches deep into the high Alps (Bernina/Livigno) far north of any
-  // peak in our list, so framing the initial view on the full province union zooms out
-  // to nearly all of Lombardy. Frame on the peaks themselves instead; the province
-  // outline/cells still extend further and are reachable by panning/zooming out.
   var peakLons = PEAKS.map(function (p) { return p.lon; });
   var peakLats = PEAKS.map(function (p) { return p.lat; });
   var peaksBbox = [Math.min.apply(null, peakLons), Math.min.apply(null, peakLats),
                     Math.max.apply(null, peakLons), Math.max.apply(null, peakLats)];
-
-  // Voronoi cells partition whatever polygon they're clipped to. Clipping to the full
-  // province union lets edge peaks (e.g. the last summit before Sondrio's empty high-Alps
-  // panhandle) inherit huge, geographically meaningless territory with no relation to the
-  // actual mountain. Clip to the peaks' area (generously padded) intersected with the
-  // province union instead, so cells stay roughly mountain-sized.
-  var clipPad = 0.22;
-  var clipRect = turf.bboxPolygon([
-    peaksBbox[0] - clipPad, peaksBbox[1] - clipPad,
-    peaksBbox[2] + clipPad, peaksBbox[3] + clipPad
-  ]);
-  var clipRegion = turf.intersect(provinceUnion, clipRect) || provinceUnion;
 
   var viewPad = 0.12;
   map.fitBounds([
@@ -72,45 +38,11 @@
   ]);
   map.setMinZoom(9);
 
-  // subtle outline of the mapped area
-  L.geoJSON(clipRegion, {
-    style: { color: "#3a3a3a", weight: 1.5, opacity: 0.5, fill: false, dashArray: "4,4" }
-  }).addTo(map);
+  PEAKS.forEach(function (peak) {
+    var geom = window.CELLS[peak.id];
+    if (!geom) return;
 
-  // --- Voronoi cells: each peak "owns" the area closer to it than to any other peak,
-  // clipped to the province union. Longitude scaled by cos(latitude) so cells aren't
-  // horizontally stretched (lon/lat degrees aren't equal distances on the ground). ---
-  var latRad = (bbox[1] + bbox[3]) / 2 * Math.PI / 180;
-  var lonScale = Math.cos(latRad);
-
-  var toXY = function (lon, lat) { return [lon * lonScale, lat]; };
-  var toLonLat = function (x, y) { return [x / lonScale, y]; };
-
-  var points = PEAKS.map(function (p) { return toXY(p.lon, p.lat); });
-  var pad = 0.3;
-  var extent = [
-    (bbox[0] - pad) * lonScale, bbox[1] - pad,
-    (bbox[2] + pad) * lonScale, bbox[3] + pad
-  ];
-
-  var delaunay = d3.Delaunay.from(points);
-  var voronoi = delaunay.voronoi(extent);
-
-  PEAKS.forEach(function (peak, idx) {
-    var cellXY = voronoi.cellPolygon(idx);
-    if (!cellXY) return;
-    var cellLonLat = cellXY.map(function (pt) { return toLonLat(pt[0], pt[1]); });
-    var cellFeature = turf.polygon([cellLonLat]);
-
-    var clipped;
-    try {
-      clipped = turf.intersect(cellFeature, clipRegion);
-    } catch (e) {
-      clipped = null;
-    }
-    if (!clipped) return;
-
-    var layer = L.geoJSON(clipped, { style: cellStyle(peak) })
+    var layer = L.geoJSON(geom, { style: cellStyle(peak) })
       .bindPopup(makePopupHtml(peak))
       .addTo(map);
 
