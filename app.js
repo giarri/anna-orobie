@@ -72,6 +72,25 @@
   syncStatusText(s3Enabled ? "Sincronizzazione..." : "Salvataggio solo su questo dispositivo");
   if (s3Enabled) loadRemote();
 
+  var randomBtn = document.getElementById("random-peak-btn");
+  if (randomBtn) randomBtn.addEventListener("click", pickRandomPeak);
+
+  function pickRandomPeak() {
+    var remaining = PEAKS.filter(function (p) { return !climbed.has(p.id); });
+    if (!remaining.length) {
+      randomBtn.disabled = true;
+      randomBtn.textContent = "Tutte le montagne salite! 🎉";
+      return;
+    }
+    var peak = remaining[Math.floor(Math.random() * remaining.length)];
+    map.closePopup();
+    map.flyTo([peak.lat, peak.lon], 13, { duration: 0.75 });
+    var dot = dotLayers[peak.id];
+    if (dot) {
+      map.once("moveend", function () { dot.openPopup(); });
+    }
+  }
+
   function cellStyle(peak) {
     var isClimbed = climbed.has(peak.id);
     return {

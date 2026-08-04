@@ -59,8 +59,25 @@ header h1 {
   transition: width 0.3s ease;
 }
 
+#random-peak-btn {
+  margin-top: 0.6rem;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: white;
+}
+
+#random-peak-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 #map {
-  height: calc(100vh - 150px);
+  height: calc(100vh - 190px);
   width: 100%;
 }
 
