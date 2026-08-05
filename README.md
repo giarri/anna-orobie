@@ -109,13 +109,19 @@ Commit and push. The site now reads `https://BUCKET_NAME.s3.REGION.amazonaws.com
 
 ## Data
 
-- `data/peaks.js` — 88 summits (name, elevation, lat/lon, group: "Alpi Orobie" or "Prealpi"): 34 Alpi Orobie, 54 Prealpi. Started from the 39 Orobie peaks in `peaks.txt` filtered down to the ones falling within Como/Lecco/Sondrio/Bergamo (the rest sit in Brescia province, out of scope) plus a curated set of named Prealpi Lecchesi/Comasche summits (Grigne, Resegone, Corni di Canzo, Monte Barro, San Primo, Bisbino, etc), then hand-adjusted on request — dropping technical sub-pinnacles/near-duplicate summits and adding named peaks that were missing. Coordinates are OSM `natural=peak` nodes (Overpass API).
+- `data/peaks.js` — 88 summits (name, elevation, lat/lon, group: "Alpi Orobie" or "Prealpi", province: Bergamo/Como/Lecco/Sondrio). Started from the 39 Orobie peaks in `peaks.txt` filtered down to the ones falling within Como/Lecco/Sondrio/Bergamo (the rest sit in Brescia province, out of scope) plus a curated set of named Prealpi Lecchesi/Comasche summits (Grigne, Resegone, Corni di Canzo, Monte Barro, San Primo, Bisbino, etc), then hand-adjusted on request — dropping technical sub-pinnacles/near-duplicate summits and adding named peaks that were missing. Coordinates are OSM `natural=peak` nodes (Overpass API); province is derived by point-in-polygon against `data/boundary.js`.
 - `data/boundary.js` — simplified administrative boundary rings for the 4 provinces (OSM relations, Douglas-Peucker simplified). Used as an input to the cell-generation pipeline below (not loaded by the site itself).
 - `data/cells.js` — precomputed GeoJSON polygon per peak (the "whole mountain" territory), generated offline:
   1. Fetch SRTM elevation tiles (AWS Terrain Tiles, terrarium format) covering the peaks' bounding box.
   2. Seed a marker at each summit's pixel and run watershed segmentation (`skimage.segmentation.watershed`) on the *negated* elevation raster — peaks become basins in the negated surface, so the catchment boundaries land on the ridges of that surface, i.e. the valleys of the real one.
-  3. Vectorize each label with `cv2.findContours`, simplify (Douglas-Peucker), clip to the province-union ∩ peaks-bbox region, and dump as static GeoJSON.
-  
-  The pipeline isn't checked into the repo (one-off Python/venv script using numpy/scipy/scikit-image/opencv/shapely) — regenerate by re-running the same steps if the peak list changes.
+  3. Vectorize each label with `cv2.findContours`, buffer slightly and simplify (Douglas-Peucker) to keep shared borders gap-free, clip to the province-union ∩ peaks-bbox region, subtract Lake Como's surface, and dump as static GeoJSON.
+
+  The pipeline lives in `tools/generate_cells.py`. To regenerate after changing the peak list:
+
+  ```
+  python3 -m venv /tmp/cells-venv && source /tmp/cells-venv/bin/activate
+  pip install -r tools/requirements.txt
+  python tools/generate_cells.py --verify
+  ```
 
 All of the above is best-effort — good enough for a hiking-progress map, not for navigation or precise boundary disputes.
