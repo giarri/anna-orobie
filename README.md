@@ -1,10 +1,23 @@
 # Le Orobie di Anna
 
-Interactive map of 88 summits across the Alpi Orobie and Prealpi, spanning the provinces of Como, Lecco, Sondrio and Bergamo. Each mountain is drawn as its real catchment area — a watershed segmentation computed from actual elevation data, seeded at the summit, so the boundary with the next mountain over runs along the valley floor between them rather than an abstract straight line. Clicking anywhere in a mountain's territory marks the whole thing climbed. Works offline with `localStorage`; optionally syncs across devices via a public S3 JSON file, written through an unauthenticated Cognito identity (no server, no secrets in the frontend).
+Interactive map of 88 summits across the Alpi Orobie and Prealpi, spanning the provinces of Como, Lecco, Sondrio and Bergamo. Each mountain is drawn as its real catchment area — a watershed segmentation computed from actual elevation data, seeded at the summit, so the boundary with the next mountain over runs along the valley floor between them rather than an abstract straight line. Clicking anywhere in a mountain's territory to mark the peak climbed.
+
+Basemap: [OpenTopoMap](https://opentopomap.org) tiles, desaturated to grayscale via CSS (`#map .leaflet-tile-pane { filter: grayscale(...) }` in `style.css`) so a mountain's territory pops in color once it's climbed.
+
+Works offline with `localStorage`; optionally syncs across devices via a public S3 JSON file, written through an unauthenticated Cognito identity (no server, no secrets in the frontend).
+
+## Contents
+
+- [Local preview](#local-preview)
+- [Deploy to GitHub Pages](#deploy-to-github-pages)
+- [Project layout](#project-layout)
+- [Data & the cell-generation pipeline](#data--the-cell-generation-pipeline)
+- [Optional: cross-device sync via S3](#optional-cross-device-sync-via-s3)
+- [Caveats](#caveats)
 
 ## Local preview
 
-Just open `index.html` in a browser, or serve the folder:
+Open `index.html` directly in a browser, or serve the folder:
 
 ```
 python3 -m http.server 8000
@@ -12,10 +25,47 @@ python3 -m http.server 8000
 
 ## Deploy to GitHub Pages
 
-1. Create a repo on GitHub (e.g. `anna-orobie`).
+1. Create a repo on GitHub .
 2. Push this folder to it (`main` branch).
 3. Repo Settings → Pages → Source: `main` branch, `/ (root)`.
-4. Site will be live at `https://<username>.github.io/<repo>/`.
+4. Site is live at `https://<username>.github.io/<repo>/`.
+
+## Project layout
+
+| Path | What |
+|---|---|
+| `index.html` | Page shell — loads Leaflet, AWS SDK, and the app scripts |
+| `style.css` | Grayscale-basemap styling, popup/progress-bar UI |
+| `app.js` | Map setup, click-to-toggle "climbed" logic, localStorage + S3 sync |
+| `aws-config.js` | S3/Cognito settings for optional sync — blank by default |
+| `data/peaks.js` | The 88 summits: name, elevation, lat/lon, group, province |
+| `data/boundary.js` | Province boundary rings — pipeline input only, not loaded by the site |
+| `data/cells.js` | Precomputed mountain-territory polygons — what the site actually renders |
+| `tools/generate_cells.py` | Offline pipeline that produces `data/cells.js` |
+| `peaks.txt` | Original 39-peak Orobie source list this project started from |
+
+## Data & the cell-generation pipeline
+
+`data/peaks.js` — 88 summits (name, elevation, lat/lon, `group`: "Alpi Orobie" or "Prealpi", `province`: Bergamo/Como/Lecco/Sondrio). Started from the 39 Orobie peaks in `peaks.txt`, filtered to the ones inside Como/Lecco/Sondrio/Bergamo (the rest sit in Brescia, out of scope), plus a curated set of named Prealpi summits (Grigne, Resegone, Corni di Canzo, Monte Barro, San Primo, Bisbino, etc.), then hand-adjusted — dropping technical sub-pinnacles/near-duplicates and adding named peaks that were missing. Coordinates come from OSM `natural=peak` nodes (Overpass API); province is derived by point-in-polygon against `data/boundary.js`.
+
+`data/boundary.js` — simplified administrative boundary rings for the 4 provinces (OSM relations, Douglas-Peucker simplified). Feeds the cell-generation pipeline below; not loaded by the site itself.
+
+`data/cells.js` — one GeoJSON polygon per peak (its "whole mountain" territory), generated offline by `tools/generate_cells.py`:
+
+1. Fetch SRTM elevation tiles (AWS Terrain Tiles, terrarium format) covering the peaks' bounding box.
+2. Seed a marker pixel at each summit and run watershed segmentation (`skimage.segmentation.watershed`) on the *negated* elevation raster — peaks become basins in the negated surface, so catchment boundaries land on that surface's ridges, i.e. the real valleys.
+3. Vectorize each label with `cv2.findContours`, buffer slightly outward and simplify (Douglas-Peucker) at a tolerance below the buffer, so shared borders stay gap-free instead of drifting apart under independent simplification.
+4. Clip to province-union ∩ peaks-bbox, subtract Lake Como's surface, round coordinates, and write static GeoJSON.
+
+To regenerate after changing the peak list:
+
+```
+python3 -m venv /tmp/cells-venv && source /tmp/cells-venv/bin/activate
+pip install -r tools/requirements.txt
+python tools/generate_cells.py --verify
+```
+
+`--verify` dense-samples the output and reports gap/overlap rates between adjacent cells — expect ~0% outside the area Lake Como was subtracted from.
 
 ## Optional: cross-device sync via S3
 
@@ -27,7 +77,7 @@ AWS Console → S3 → Create bucket.
 
 - Bucket name: something globally unique, e.g. `anna-orobie-climbed`
 - Region: pick one close to you, e.g. `eu-central-1` (Frankfurt)
-- **Uncheck** "Block all public access" (we need the one JSON object to be publicly readable)
+- **Uncheck** "Block all public access" (the one JSON object needs to be publicly readable)
 - Acknowledge the warning, create bucket
 
 ### 2. Enable CORS on the bucket
@@ -107,21 +157,6 @@ window.AWS_CONFIG = {
 
 Commit and push. The site now reads `https://BUCKET_NAME.s3.REGION.amazonaws.com/climbed-status.json` on load, and writes to it (via temporary Cognito credentials) every time a peak is toggled. If any step above isn't done yet, or `aws-config.js` is left blank, the site silently falls back to `localStorage`-only mode — nothing breaks.
 
-## Data
+## Caveats
 
-- `data/peaks.js` — 88 summits (name, elevation, lat/lon, group: "Alpi Orobie" or "Prealpi", province: Bergamo/Como/Lecco/Sondrio). Started from the 39 Orobie peaks in `peaks.txt` filtered down to the ones falling within Como/Lecco/Sondrio/Bergamo (the rest sit in Brescia province, out of scope) plus a curated set of named Prealpi Lecchesi/Comasche summits (Grigne, Resegone, Corni di Canzo, Monte Barro, San Primo, Bisbino, etc), then hand-adjusted on request — dropping technical sub-pinnacles/near-duplicate summits and adding named peaks that were missing. Coordinates are OSM `natural=peak` nodes (Overpass API); province is derived by point-in-polygon against `data/boundary.js`.
-- `data/boundary.js` — simplified administrative boundary rings for the 4 provinces (OSM relations, Douglas-Peucker simplified). Used as an input to the cell-generation pipeline below (not loaded by the site itself).
-- `data/cells.js` — precomputed GeoJSON polygon per peak (the "whole mountain" territory), generated offline:
-  1. Fetch SRTM elevation tiles (AWS Terrain Tiles, terrarium format) covering the peaks' bounding box.
-  2. Seed a marker at each summit's pixel and run watershed segmentation (`skimage.segmentation.watershed`) on the *negated* elevation raster — peaks become basins in the negated surface, so the catchment boundaries land on the ridges of that surface, i.e. the valleys of the real one.
-  3. Vectorize each label with `cv2.findContours`, buffer slightly and simplify (Douglas-Peucker) to keep shared borders gap-free, clip to the province-union ∩ peaks-bbox region, subtract Lake Como's surface, and dump as static GeoJSON.
-
-  The pipeline lives in `tools/generate_cells.py`. To regenerate after changing the peak list:
-
-  ```
-  python3 -m venv /tmp/cells-venv && source /tmp/cells-venv/bin/activate
-  pip install -r tools/requirements.txt
-  python tools/generate_cells.py --verify
-  ```
-
-All of the above is best-effort — good enough for a hiking-progress map, not for navigation or precise boundary disputes.
+Everything above is best-effort — good enough for a hiking-progress map, not for navigation or precise boundary disputes.

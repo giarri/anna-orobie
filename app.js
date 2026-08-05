@@ -10,10 +10,48 @@
   var dotLayers = {};
 
   var map = L.map("map", { zoomControl: true });
-  L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+  var TILE_URL = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+  L.tileLayer(TILE_URL, {
     maxZoom: 17,
     attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
   }).addTo(map);
+
+  // Second copy of the same tiles, in a pane the grayscale CSS filter doesn't reach
+  // (see style.css: the filter targets .leaflet-tile-pane specifically). It's clipped
+  // via CSS clip-path to the union of climbed cells, so climbed mountains show the
+  // basemap at full, original saturation while everything else stays grayscale.
+  map.createPane("saturatedTiles");
+  var saturatedPane = map.getPane("saturatedTiles");
+  saturatedPane.style.zIndex = 250;
+  saturatedPane.style.pointerEvents = "none";
+  var saturatedLayer = L.tileLayer(TILE_URL, { maxZoom: 17, pane: "saturatedTiles" }).addTo(map);
+
+  function updateSaturatedMask() {
+    var container = saturatedLayer.getContainer();
+    if (!container) return;
+    var subpaths = [];
+    climbed.forEach(function (id) {
+      var geom = window.CELLS[id];
+      if (!geom) return;
+      var polygons = geom.type === "MultiPolygon" ? geom.coordinates : [geom.coordinates];
+      polygons.forEach(function (rings) {
+        rings.forEach(function (ring) {
+          var d = "";
+          ring.forEach(function (coord, i) {
+            var lp = map.latLngToLayerPoint([coord[1], coord[0]]);
+            d += (i === 0 ? "M" : "L") + lp.x.toFixed(1) + "," + lp.y.toFixed(1) + " ";
+          });
+          subpaths.push(d + "Z");
+        });
+      });
+    });
+    container.style.clipPath = subpaths.length
+      ? 'path(evenodd, "' + subpaths.join(" ") + '")'
+      : "polygon(0px 0px, 0px 0px, 0px 0px)";
+  }
+
+  map.on("moveend zoomend", updateSaturatedMask);
+  updateSaturatedMask();
 
   // Mountain territories (data/cells.js) are precomputed offline: a watershed segmentation
   // seeded at each summit over real SRTM/AWS terrain-tile elevation data, so each cell's
@@ -136,7 +174,7 @@
       weight: isClimbed ? 1.5 : 0.8,
       opacity: isClimbed ? 0.8 : 0.35,
       fillColor: isClimbed ? "#d17b3f" : "#7a7a7a",
-      fillOpacity: isClimbed ? 0.45 : 0.12
+      fillOpacity: isClimbed ? 0.12 : 0.12
     };
   }
 
@@ -159,6 +197,7 @@
 
     saveLocal();
     updateProgress();
+    updateSaturatedMask();
 
     var peak = PEAKS.find(function (p) { return p.id === id; });
     var layer = cellLayers[id];
@@ -228,6 +267,7 @@
             if (dot) dot.setPopupContent(makePopupHtml(peak));
           });
           updateProgress();
+          updateSaturatedMask();
         }
         syncStatusText("Sincronizzato");
       })
