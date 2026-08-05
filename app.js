@@ -72,16 +72,54 @@
   syncStatusText(s3Enabled ? "Sincronizzazione..." : "Salvataggio solo su questo dispositivo");
   if (s3Enabled) loadRemote();
 
+  var filters = { group: "all", province: "all" };
+  var groupSelect = document.getElementById("filter-group");
+  var provinceSelect = document.getElementById("filter-province");
+  if (groupSelect) groupSelect.addEventListener("change", function () {
+    filters.group = groupSelect.value;
+    applyFilters();
+  });
+  if (provinceSelect) provinceSelect.addEventListener("change", function () {
+    filters.province = provinceSelect.value;
+    applyFilters();
+  });
+
+  function peakMatchesFilters(peak) {
+    return (filters.group === "all" || peak.group === filters.group) &&
+      (filters.province === "all" || peak.province === filters.province);
+  }
+
+  function applyFilters() {
+    PEAKS.forEach(function (peak) {
+      var match = peakMatchesFilters(peak);
+      var layer = cellLayers[peak.id];
+      var dot = dotLayers[peak.id];
+      if (layer) {
+        if (match && !map.hasLayer(layer)) layer.addTo(map);
+        else if (!match && map.hasLayer(layer)) map.removeLayer(layer);
+      }
+      if (dot) {
+        if (match && !map.hasLayer(dot)) dot.addTo(map);
+        else if (!match && map.hasLayer(dot)) map.removeLayer(dot);
+      }
+    });
+  }
+
   var randomBtn = document.getElementById("random-peak-btn");
   if (randomBtn) randomBtn.addEventListener("click", pickRandomPeak);
 
+  var randomBtnDefaultText = randomBtn ? randomBtn.textContent : "";
+
   function pickRandomPeak() {
-    var remaining = PEAKS.filter(function (p) { return !climbed.has(p.id); });
+    var filtered = PEAKS.filter(peakMatchesFilters);
+    var remaining = filtered.filter(function (p) { return !climbed.has(p.id); });
     if (!remaining.length) {
-      randomBtn.disabled = true;
-      randomBtn.textContent = "Tutte le montagne salite! 🎉";
+      randomBtn.textContent = filtered.length
+        ? "Tutte le montagne salite (con questi filtri)! 🎉"
+        : "Nessuna montagna con questi filtri";
       return;
     }
+    randomBtn.textContent = randomBtnDefaultText;
     var peak = remaining[Math.floor(Math.random() * remaining.length)];
     map.closePopup();
     map.flyTo([peak.lat, peak.lon], 13, { duration: 0.75 });
