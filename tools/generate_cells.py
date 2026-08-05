@@ -96,6 +96,16 @@ LAKES_TO_EXCLUDE = {
     541757: "Lago di Como",
 }
 
+# Elevation floor for the watershed flood, in meters. Without this, a
+# summit's catchment floods downhill along its valley for as long as the
+# province boundary allows -- which, on the south side of Bergamo/Lecco/
+# Como, runs well past the last foothill and out into the flat Po/Brianza
+# plain, so a peak's cell ends up painting farmland tens of km from any
+# mountain. All 88 peaks sit above 900m, so a cutoff well below that (but
+# above the lowland floor, ~150-250m here) stops the flood at the plain's
+# edge without ever touching a real catchment boundary.
+PLAIN_ELEVATION_M = 400
+
 
 # --------------------------------------------------------------------------
 # Web Mercator tile math (the same scheme every XYZ raster tile server
@@ -251,6 +261,9 @@ def compute_watershed(raster, peaks, clip_region):
         for poly in polys
     ]
     cv2.fillPoly(mask, rings_px, 1)
+    # Stop the flood at the plain's edge (see PLAIN_ELEVATION_M) rather than
+    # letting it run downhill all the way to the province boundary.
+    mask &= (raster.mosaic > PLAIN_ELEVATION_M)
 
     labels = watershed(-raster.mosaic, markers=markers, mask=mask)
     print(f"[watershed] {len(np.unique(labels)) - 1} catchments computed (+background)")
