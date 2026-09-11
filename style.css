@@ -154,7 +154,7 @@ footer {
   position: fixed;
   left: 0.75rem;
   right: 0.75rem;
-  bottom: 0.75rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
   z-index: 1000;
   display: flex;
   align-items: center;
