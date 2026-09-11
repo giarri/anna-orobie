@@ -137,6 +137,14 @@ footer {
   filter: grayscale(90%) contrast(1.05) brightness(1.03);
 }
 
+.landmark-icon {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 28px;
+  text-align: center;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+  
 /* Install-as-app banner */
 #install-banner {
   position: fixed;
