@@ -106,6 +106,22 @@
     dotLayers[peak.id] = dot;
   });
 
+  // Personal landmarks, unrelated to the peak-tracking data.
+  var LANDMARKS = [
+    { name: "Merate", lat: 45.7075, lon: 9.4189, emoji: "🏠" },
+    { name: "Arese", lat: 45.5486, lon: 9.0778, emoji: "❤️" }
+  ];
+  LANDMARKS.forEach(function (lm) {
+    L.marker([lm.lat, lm.lon], {
+      icon: L.divIcon({
+        className: "landmark-icon",
+        html: lm.emoji,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      })
+    }).bindTooltip(lm.name).addTo(map);
+  });
+
   updateProgress();
   syncStatusText(s3Enabled ? "Sincronizzazione..." : "Salvataggio solo su questo dispositivo");
   if (s3Enabled) loadRemote();
