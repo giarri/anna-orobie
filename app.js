@@ -159,6 +159,13 @@
     });
   }
 
+  var filtersToggleBtn = document.getElementById("filters-toggle-btn");
+  var filtersPanel = document.getElementById("filters-panel");
+  if (filtersToggleBtn && filtersPanel) filtersToggleBtn.addEventListener("click", function () {
+    filtersPanel.classList.toggle("open");
+    filtersToggleBtn.classList.toggle("open");
+  });
+
   var randomBtn = document.getElementById("random-peak-btn");
   if (randomBtn) randomBtn.addEventListener("click", pickRandomPeak);
 
@@ -244,7 +251,6 @@
     var total = PEAKS.length;
     var done = climbed.size;
     document.getElementById("progress-text").textContent = done + " / " + total + " salite";
-    document.getElementById("progress-fill").style.width = (total ? (done / total * 100) : 0) + "%";
   }
 
   function loadLocal() {

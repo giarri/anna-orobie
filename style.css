@@ -17,7 +17,8 @@ body {
 }
 
 header {
-  padding: 0.75rem 1.5rem 0.75rem;
+  position: relative;
+  padding: 0.6rem 1.5rem 0.6rem;
   background: linear-gradient(135deg, var(--green-dark), var(--green));
   color: white;
   text-align: center;
@@ -25,39 +26,36 @@ header {
 
 header h1 {
   margin: 0 0 0.5rem;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
 }
 
-.stats {
-  max-width: 420px;
-  margin: 0 auto;
-}
-
-#progress-text {
-  font-size: 0.9rem;
+.progress-badge {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  background: rgba(255,255,255,0.2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
 }
 
-.progress-bar {
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.3);
-  margin-top: 0.4rem;
-  overflow: hidden;
-}
-
-#progress-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--accent);
-  transition: width 0.3s ease;
-}
-
-.filters {
+.actions {
   display: flex;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 0.6rem;
+}
+
+.filters {
+  display: none;
+  max-width: 420px;
+  margin: 0.6rem auto 0;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.filters.open {
+  display: flex;
 }
 
 .filters select {
@@ -71,8 +69,8 @@ header h1 {
   color: #2b2b2b;
 }
 
+#filters-toggle-btn,
 #random-peak-btn {
-  margin-top: 0.6rem;
   border: none;
   border-radius: 6px;
   padding: 0.5rem 1rem;
@@ -83,13 +81,18 @@ header h1 {
   color: white;
 }
 
+#filters-toggle-btn.open {
+  background: rgba(255,255,255,0.9);
+  color: #2b2b2b;
+}
+
 #random-peak-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
 #map {
-  height: calc(100vh - 230px);
+  height: calc(100vh - 170px);
   width: 100%;
 }
 

@@ -16,12 +16,13 @@
 </head>
 <body>
 <header>
+  <span id="progress-text" class="progress-badge">0 / 88 salite</span>
   <h1>⛰️ Le Orobie di Anna</h1>
   <div class="stats">
     <span id="progress-text">0 / 86 salite</span>
     <div class="progress-bar"><div id="progress-fill"></div></div>
   </div>
-  <div class="filters">
+  <div class="filters" id="filters-panel">
     <select id="filter-group">
       <option value="all">Tutti i gruppi</option>
       <option value="Alpi Orobie">Alpi Orobie</option>
@@ -35,7 +36,6 @@
       <option value="Sondrio">Sondrio</option>
     </select>
   </div>
-  <button id="random-peak-btn" type="button">🎲 Scegli una montagna a caso</button>
 </header>
 
 <div id="map"></div>
