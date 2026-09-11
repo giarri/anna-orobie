@@ -1,4 +1,4 @@
-// 88 summits across the Alpi Orobie + Prealpi (Como, Lecco, Sondrio, Bergamo provinces).
+// 86 summits across the Alpi Orobie + Prealpi (Como, Lecco, Sondrio, Bergamo provinces).
 // Coordinates from OpenStreetMap (Overpass API, natural=peak nodes), Aug 2026.
 var PEAKS = [
   {"id": 1, "name": "Pizzo Coca", "elevation_m": 3050, "lat": 46.071520, "lon": 10.011541, "group": "Alpi Orobie", "province": "Bergamo"},
@@ -40,7 +40,6 @@ var PEAKS = [
   {"id": 37, "name": "Pizzo di Cassera", "elevation_m": 2326, "lat": 46.046424, "lon": 9.501426, "group": "Prealpi", "province": "Sondrio"},
   {"id": 38, "name": "Pizzo Varrone", "elevation_m": 2325, "lat": 46.023100, "lon": 9.520100, "group": "Prealpi", "province": "Lecco"},
   {"id": 39, "name": "Cima di Colombana", "elevation_m": 2288, "lat": 46.054282, "lon": 9.506739, "group": "Prealpi", "province": "Lecco"},
-  {"id": 40, "name": "Cima Garzoni", "elevation_m": 2264, "lat": 46.076979, "lon": 9.440002, "group": "Prealpi", "province": "Lecco"},
   {"id": 41, "name": "Pizzo della Pieve", "elevation_m": 2257, "lat": 45.961871, "lon": 9.398940, "group": "Prealpi", "province": "Lecco"},
   {"id": 42, "name": "Grigna Meridionale", "elevation_m": 2177, "lat": 45.921900, "lon": 9.390700, "group": "Prealpi", "province": "Lecco"},
   {"id": 43, "name": "Zucco dei Chignoli", "elevation_m": 2163, "lat": 45.942897, "lon": 9.390035, "group": "Prealpi", "province": "Lecco"},
@@ -87,6 +86,5 @@ var PEAKS = [
   {"id": 84, "name": "Monte Magnodeno", "elevation_m": 1241, "lat": 45.839600, "lon": 9.440700, "group": "Prealpi", "province": "Lecco"},
   {"id": 85, "name": "Monte Boletto", "elevation_m": 1238, "lat": 45.833700, "lon": 9.142400, "group": "Prealpi", "province": "Como"},
   {"id": 86, "name": "Monte San Martino", "elevation_m": 1046, "lat": 45.874700, "lon": 9.387300, "group": "Prealpi", "province": "Lecco"},
-  {"id": 87, "name": "Monte Grionsc", "elevation_m": 925, "lat": 45.935401, "lon": 9.241849, "group": "Prealpi", "province": "Como"},
   {"id": 88, "name": "Monte Barro", "elevation_m": 922, "lat": 45.830800, "lon": 9.380200, "group": "Prealpi", "province": "Lecco"}
 ];

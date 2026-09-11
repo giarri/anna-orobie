@@ -262,8 +262,8 @@ def compute_watershed(raster, peaks, clip_region):
     # shrank from a normal ~0.55km^2 catchment to a ~0.03km^2 sliver), so
     # blind snapping trades one bug for another rather than being a safe
     # universal correction.
-    SNAP_PEAK_IDS = {23, 46, 56, 71, 86, 87}  # Monte Bello, Cima di Cornice,
-    # Pizzo del Dente, Monte Saetta, Monte San Martino, Monte Grionsc
+    SNAP_PEAK_IDS = {23, 46, 56, 71, 86}  # Monte Bello, Cima di Cornice,
+    # Pizzo del Dente, Monte Saetta, Monte San Martino
     SNAP_RADIUS_PX = 10  # ~130-190m at zoom 13; comfortably covers the
     # offsets seen in practice while staying under half the closest
     # peak-to-peak distance in data/peaks.js (~424m), so a snap can't
