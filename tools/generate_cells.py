@@ -243,11 +243,43 @@ def compute_watershed(raster, peaks, clip_region):
     """
     h, w = raster.mosaic.shape
 
+    # A peak's lon/lat (from OSM "natural=peak" nodes) is occasionally not
+    # the exact raster pixel of the true summit -- at this resolution it
+    # can be off by several pixels. When that happens the marker lands on
+    # the peak's shoulder instead of its high point, and can end up
+    # outside its own basin: the neighboring peak's flood claims the
+    # whole hill, and this peak's watershed collapses to a sliver hugging
+    # the ridge around the marker instead of a real catchment (reported
+    # by a user as "Monte Saetta" rendering as basically a line).
+    #
+    # Confirmed by inspecting the elevation raster at each affected peak's
+    # coordinate: the true local summit was 2-8px away and higher. Fix:
+    # snap just these peaks' markers to the local elevation max within a
+    # small window. This is deliberately scoped to only the peaks
+    # observed to be broken (rather than applied to all 88) -- trying it
+    # globally moved at least one already-correct peak's marker onto a
+    # neighboring massif's slope instead of its own (Castel Reino's cell
+    # shrank from a normal ~0.55km^2 catchment to a ~0.03km^2 sliver), so
+    # blind snapping trades one bug for another rather than being a safe
+    # universal correction.
+    SNAP_PEAK_IDS = {23, 46, 56, 71, 86, 87}  # Monte Bello, Cima di Cornice,
+    # Pizzo del Dente, Monte Saetta, Monte San Martino, Monte Grionsc
+    SNAP_RADIUS_PX = 10  # ~130-190m at zoom 13; comfortably covers the
+    # offsets seen in practice while staying under half the closest
+    # peak-to-peak distance in data/peaks.js (~424m), so a snap can't
+    # accidentally jump onto a neighboring peak's summit.
+
     markers = np.zeros((h, w), dtype=np.int32)
     for peak in peaks:
         px, py = raster.lonlat_to_px(peak["lon"], peak["lat"])
         col, row = int(round(px)), int(round(py))
         if 0 <= row < h and 0 <= col < w:
+            if peak["id"] in SNAP_PEAK_IDS:
+                r0, r1 = max(0, row - SNAP_RADIUS_PX), min(h, row + SNAP_RADIUS_PX + 1)
+                c0, c1 = max(0, col - SNAP_RADIUS_PX), min(w, col + SNAP_RADIUS_PX + 1)
+                window = raster.mosaic[r0:r1, c0:c1]
+                local_row, local_col = np.unravel_index(np.argmax(window), window.shape)
+                row, col = r0 + local_row, c0 + local_col
             # 3x3 dilation: a single-pixel seed is fragile against
             # resampling/rounding; a small blob survives reliably.
             markers[max(0, row - 1):row + 2, max(0, col - 1):col + 2] = peak["id"]
