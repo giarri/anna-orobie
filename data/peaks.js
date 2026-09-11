@@ -1,5 +1,5 @@
-// 86 summits across the Alpi Orobie + Prealpi (Como, Lecco, Sondrio, Bergamo provinces).
-// Coordinates from OpenStreetMap (Overpass API, natural=peak nodes), Aug 2026.
+// 98 summits across the Alpi Orobie + Prealpi (Como, Lecco, Sondrio, Bergamo provinces).
+// Coordinates from OpenStreetMap (Overpass API, natural=peak nodes), Aug-Sep 2026.
 var PEAKS = [
   {"id": 1, "name": "Pizzo Coca", "elevation_m": 3050, "lat": 46.071520, "lon": 10.011541, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 2, "name": "Pizzo Redorta", "elevation_m": 3038, "lat": 46.061804, "lon": 9.984734, "group": "Alpi Orobie", "province": "Bergamo"},
@@ -26,14 +26,22 @@ var PEAKS = [
   {"id": 23, "name": "Monte Bello", "elevation_m": 2546, "lat": 46.050827, "lon": 9.973063, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 24, "name": "Cima Tonale", "elevation_m": 2544, "lat": 46.069604, "lon": 9.810009, "group": "Alpi Orobie", "province": "Sondrio"},
   {"id": 25, "name": "Monte Toro", "elevation_m": 2524, "lat": 46.059439, "lon": 9.781131, "group": "Alpi Orobie", "province": "Bergamo"},
+  {"id": 89, "name": "Presolana Occidentale", "elevation_m": 2521, "lat": 45.956600, "lon": 10.055500, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 26, "name": "Pizzo Alto", "elevation_m": 2518, "lat": 46.077529, "lon": 9.456863, "group": "Alpi Orobie", "province": "Sondrio"},
+  {"id": 90, "name": "Pizzo Arera", "elevation_m": 2512, "lat": 45.934590, "lon": 9.815820, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 27, "name": "Cima Vallocci", "elevation_m": 2510, "lat": 46.078066, "lon": 9.744818, "group": "Alpi Orobie", "province": "Sondrio"},
   {"id": 28, "name": "Pizzo Trona", "elevation_m": 2510, "lat": 46.019946, "lon": 9.534480, "group": "Alpi Orobie", "province": "Sondrio"},
   {"id": 29, "name": "Pizzo Campaggio", "elevation_m": 2502, "lat": 46.092486, "lon": 9.854473, "group": "Alpi Orobie", "province": "Sondrio"},
+  {"id": 91, "name": "Pizzo Camino", "elevation_m": 2491, "lat": 45.981670, "lon": 10.177560, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 30, "name": "Monte Pedena", "elevation_m": 2399, "lat": 46.069527, "lon": 9.645160, "group": "Alpi Orobie", "province": "Sondrio"},
   {"id": 31, "name": "Monte Pegherolo", "elevation_m": 2368, "lat": 46.024485, "lon": 9.713398, "group": "Alpi Orobie", "province": "Bergamo"},
+  {"id": 92, "name": "Monte Secco Brembano", "elevation_m": 2291, "lat": 46.015300, "lon": 9.720800, "group": "Alpi Orobie", "province": "Bergamo"},
+  {"id": 93, "name": "Corno Branchino", "elevation_m": 2029, "lat": 45.955150, "lon": 9.802420, "group": "Alpi Orobie", "province": "Bergamo"},
+  {"id": 94, "name": "Monte Alben", "elevation_m": 2019, "lat": 45.862090, "lon": 9.782080, "group": "Alpi Orobie", "province": "Bergamo"},
+  {"id": 95, "name": "Monte Venturosa", "elevation_m": 1999, "lat": 45.929620, "lon": 9.616090, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 32, "name": "Monte Pora", "elevation_m": 1880, "lat": 45.885278, "lon": 10.109444, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 33, "name": "Monte Torcola Vaga", "elevation_m": 1880, "lat": 45.989716, "lon": 9.731800, "group": "Alpi Orobie", "province": "Bergamo"},
+  {"id": 96, "name": "Monte Cancervo", "elevation_m": 1835, "lat": 45.914460, "lon": 9.617810, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 34, "name": "Montagnina", "elevation_m": 1598, "lat": 45.844493, "lon": 9.943599, "group": "Alpi Orobie", "province": "Bergamo"},
   {"id": 35, "name": "Grigna Settentrionale", "elevation_m": 2410, "lat": 45.953400, "lon": 9.387700, "group": "Prealpi", "province": "Lecco"},
   {"id": 36, "name": "Cima di Stavello", "elevation_m": 2355, "lat": 46.063675, "lon": 9.503452, "group": "Prealpi", "province": "Lecco"},
@@ -70,6 +78,7 @@ var PEAKS = [
   {"id": 68, "name": "Monte Due Mani", "elevation_m": 1666, "lat": 45.899400, "lon": 9.449700, "group": "Prealpi", "province": "Lecco"},
   {"id": 69, "name": "Sasso Bianco", "elevation_m": 1644, "lat": 45.936294, "lon": 9.022314, "group": "Prealpi", "province": "Como"},
   {"id": 70, "name": "Monte Crocione", "elevation_m": 1641, "lat": 46.006098, "lon": 9.195938, "group": "Prealpi", "province": "Como"},
+  {"id": 97, "name": "Pizzo Formico", "elevation_m": 1636, "lat": 45.847620, "lon": 9.923990, "group": "Prealpi", "province": "Bergamo"},
   {"id": 71, "name": "Monte Saetta", "elevation_m": 1627, "lat": 45.976322, "lon": 9.347043, "group": "Prealpi", "province": "Lecco"},
   {"id": 72, "name": "Monte Palagia", "elevation_m": 1549, "lat": 45.958453, "lon": 9.337324, "group": "Prealpi", "province": "Lecco"},
   {"id": 73, "name": "Monte Coltignone", "elevation_m": 1471, "lat": 45.885600, "lon": 9.389000, "group": "Prealpi", "province": "Lecco"},
@@ -78,6 +87,7 @@ var PEAKS = [
   {"id": 76, "name": "Sasso Gordona", "elevation_m": 1410, "lat": 45.912000, "lon": 9.081000, "group": "Prealpi", "province": "Como"},
   {"id": 77, "name": "Corno di Canzo Centrale", "elevation_m": 1368, "lat": 45.862330, "lon": 9.327468, "group": "Prealpi", "province": "Como"},
   {"id": 78, "name": "Monte San Bernardo settentrionale", "elevation_m": 1351, "lat": 45.896348, "lon": 9.106982, "group": "Prealpi", "province": "Como"},
+  {"id": 98, "name": "Monte Bronzone", "elevation_m": 1334, "lat": 45.708940, "lon": 9.990970, "group": "Prealpi", "province": "Bergamo"},
   {"id": 79, "name": "Monte Bisbino", "elevation_m": 1325, "lat": 45.873700, "lon": 9.066700, "group": "Prealpi", "province": "Como"},
   {"id": 80, "name": "Monte Bolettone", "elevation_m": 1318, "lat": 45.837200, "lon": 9.179400, "group": "Prealpi", "province": "Como"},
   {"id": 81, "name": "Monte Sighignola", "elevation_m": 1303, "lat": 45.968257, "lon": 8.993488, "group": "Prealpi", "province": "Como"},
@@ -85,6 +95,8 @@ var PEAKS = [
   {"id": 83, "name": "Monte Cornizzolo", "elevation_m": 1241, "lat": 45.837100, "lon": 9.301900, "group": "Prealpi", "province": "Lecco"},
   {"id": 84, "name": "Monte Magnodeno", "elevation_m": 1241, "lat": 45.839600, "lon": 9.440700, "group": "Prealpi", "province": "Lecco"},
   {"id": 85, "name": "Monte Boletto", "elevation_m": 1238, "lat": 45.833700, "lon": 9.142400, "group": "Prealpi", "province": "Como"},
+  {"id": 99, "name": "Monte Misma", "elevation_m": 1161, "lat": 45.736780, "lon": 9.818520, "group": "Prealpi", "province": "Bergamo"},
+  {"id": 100, "name": "Canto Alto", "elevation_m": 1146, "lat": 45.770100, "lon": 9.669870, "group": "Prealpi", "province": "Bergamo"},
   {"id": 86, "name": "Monte San Martino", "elevation_m": 1046, "lat": 45.874700, "lon": 9.387300, "group": "Prealpi", "province": "Lecco"},
   {"id": 88, "name": "Monte Barro", "elevation_m": 922, "lat": 45.830800, "lon": 9.380200, "group": "Prealpi", "province": "Lecco"}
 ];

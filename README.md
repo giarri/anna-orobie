@@ -1,6 +1,6 @@
 # Le Orobie di Anna
 
-Interactive map of 86 summits across the Alpi Orobie and Prealpi, spanning the provinces of Como, Lecco, Sondrio and Bergamo. Each mountain is drawn as its real catchment area — a watershed segmentation computed from actual elevation data, seeded at the summit, so the boundary with the next mountain over runs along the valley floor between them rather than an abstract straight line. Clicking anywhere in a mountain's territory to mark the peak climbed.
+Interactive map of 98 summits across the Alpi Orobie and Prealpi, spanning the provinces of Como, Lecco, Sondrio and Bergamo. Each mountain is drawn as its real catchment area — a watershed segmentation computed from actual elevation data, seeded at the summit, so the boundary with the next mountain over runs along the valley floor between them rather than an abstract straight line. Clicking anywhere in a mountain's territory to mark the peak climbed.
 
 Basemap: [OpenTopoMap](https://opentopomap.org) tiles, desaturated to grayscale via CSS (`#map .leaflet-tile-pane { filter: grayscale(...) }` in `style.css`) so a mountain's territory pops in color once it's climbed.
 
@@ -42,7 +42,7 @@ python3 -m http.server 8000
 | `sw.js` | Service worker — caches the app shell for offline loading and PWA installability |
 | `install-prompt.js` | Shows a one-time "Installa" banner on first visit (native prompt on Android/Chrome, instructions on iOS Safari) |
 | `icons/` | App icons generated from the site's mountain glyph, in the sizes `manifest.json` and iOS require |
-| `data/peaks.js` | The 86 summits: name, elevation, lat/lon, group, province |
+| `data/peaks.js` | The 98 summits: name, elevation, lat/lon, group, province |
 | `data/boundary.js` | Province boundary rings — pipeline input only, not loaded by the site |
 | `data/cells.js` | Precomputed mountain-territory polygons — what the site actually renders |
 | `tools/generate_cells.py` | Offline pipeline that produces `data/cells.js` |
@@ -50,7 +50,7 @@ python3 -m http.server 8000
 
 ## Data & the cell-generation pipeline
 
-`data/peaks.js` — 86 summits (name, elevation, lat/lon, `group`: "Alpi Orobie" or "Prealpi", `province`: Bergamo/Como/Lecco/Sondrio). Started from the 39 Orobie peaks in `peaks.txt`, filtered to the ones inside Como/Lecco/Sondrio/Bergamo (the rest sit in Brescia, out of scope), plus a curated set of named Prealpi summits (Grigne, Resegone, Corni di Canzo, Monte Barro, San Primo, Bisbino, etc.), then hand-adjusted — dropping technical sub-pinnacles/near-duplicates and adding named peaks that were missing. Coordinates come from OSM `natural=peak` nodes (Overpass API); province is derived by point-in-polygon against `data/boundary.js`.
+`data/peaks.js` — 98 summits (name, elevation, lat/lon, `group`: "Alpi Orobie" or "Prealpi", `province`: Bergamo/Como/Lecco/Sondrio). Started from the 39 Orobie peaks in `peaks.txt`, filtered to the ones inside Como/Lecco/Sondrio/Bergamo (the rest sit in Brescia, out of scope), plus a curated set of named Prealpi summits (Grigne, Resegone, Corni di Canzo, Monte Barro, San Primo, Bisbino, etc.), then hand-adjusted — dropping technical sub-pinnacles/near-duplicates and adding named peaks that were missing. Coordinates come from OSM `natural=peak` nodes (Overpass API); province is derived by point-in-polygon against `data/boundary.js`.
 
 `data/boundary.js` — simplified administrative boundary rings for the 4 provinces (OSM relations, Douglas-Peucker simplified). Feeds the cell-generation pipeline below; not loaded by the site itself.
 
