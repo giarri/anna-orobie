@@ -38,6 +38,10 @@ python3 -m http.server 8000
 | `style.css` | Grayscale-basemap styling, popup/progress-bar UI |
 | `app.js` | Map setup, click-to-toggle "climbed" logic, localStorage + S3 sync |
 | `aws-config.js` | S3/Cognito settings for optional sync — blank by default |
+| `manifest.json` | PWA manifest — name, icons, `display: standalone` for "Add to Home Screen" |
+| `sw.js` | Service worker — caches the app shell for offline loading and PWA installability |
+| `install-prompt.js` | Shows a one-time "Installa" banner on first visit (native prompt on Android/Chrome, instructions on iOS Safari) |
+| `icons/` | App icons generated from the site's mountain glyph, in the sizes `manifest.json` and iOS require |
 | `data/peaks.js` | The 88 summits: name, elevation, lat/lon, group, province |
 | `data/boundary.js` | Province boundary rings — pipeline input only, not loaded by the site |
 | `data/cells.js` | Precomputed mountain-territory polygons — what the site actually renders |
