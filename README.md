@@ -4,7 +4,7 @@ Interactive map of 98 summits across the Alpi Orobie and Prealpi, spanning the p
 
 Basemap: [OpenTopoMap](https://opentopomap.org) tiles, desaturated to grayscale via CSS (`#map .leaflet-tile-pane { filter: grayscale(...) }` in `style.css`) so a mountain's territory pops in color once it's climbed.
 
-Works offline with `localStorage`; optionally syncs across devices via a public S3 JSON file, written through an unauthenticated Cognito identity (no server, no secrets in the frontend).
+Works offline with `localStorage`; optionally syncs across devices via a public S3 JSON file, written through a Cognito identity (unauthenticated by default, or restricted to Google sign-in — no server, no secrets in the frontend).
 
 ## Contents
 
@@ -13,6 +13,7 @@ Works offline with `localStorage`; optionally syncs across devices via a public 
 - [Project layout](#project-layout)
 - [Data & the cell-generation pipeline](#data--the-cell-generation-pipeline)
 - [Optional: cross-device sync via S3](#optional-cross-device-sync-via-s3)
+- [Optional: restrict writes to Google sign-in](#optional-restrict-writes-to-google-sign-in)
 - [Caveats](#caveats)
 
 ## Local preview
@@ -160,6 +161,86 @@ window.AWS_CONFIG = {
 ```
 
 Commit and push. The site now reads `https://BUCKET_NAME.s3.REGION.amazonaws.com/climbed-status.json` on load, and writes to it (via temporary Cognito credentials) every time a peak is toggled. If any step above isn't done yet, or `aws-config.js` is left blank, the site silently falls back to `localStorage`-only mode — nothing breaks.
+
+## Optional: restrict writes to Google sign-in
+
+By default the unauthenticated role above can write `climbed-status.json` — fine for a small personal site, but anyone with the link can overwrite the shared list. To restrict writes to just you while keeping the map itself public for anyone to view:
+
+### 1. Create a Google OAuth Client ID
+
+This step can't be scripted — Google doesn't expose OAuth client creation via CLI.
+
+- [console.cloud.google.com](https://console.cloud.google.com) → create/select a project
+- APIs & Services → OAuth consent screen → User type **External** → fill in app name + support email → Save
+- APIs & Services → Credentials → Create Credentials → **OAuth client ID** → Application type **Web application**
+- Authorized JavaScript origins: add your GitHub Pages URL (`https://<username>.github.io`) and `http://localhost:8000` for local testing
+- Leave "Authorized redirect URIs" empty (this flow uses Google's inline sign-in button, not a redirect)
+- Copy the **Client ID** (ends in `.apps.googleusercontent.com`) — no secret needed
+
+### 2. Create an authenticated IAM role
+
+```
+aws iam create-role --role-name anna_orobie_pool_auth \
+  --description "Authenticated (Google) Cognito role for anna-orobie climbed-status.json sync" \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": { "Federated": "cognito-identity.amazonaws.com" },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": { "cognito-identity.amazonaws.com:aud": "IDENTITY_POOL_ID" },
+        "ForAnyValue:StringLike": { "cognito-identity.amazonaws.com:amr": "authenticated" }
+      }
+    }]
+  }'
+
+aws iam put-role-policy --role-name anna_orobie_pool_auth \
+  --policy-name S3PutClimbedStatus \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::BUCKET_NAME/climbed-status.json"
+    }]
+  }'
+```
+
+### 3. Register Google with the identity pool and map the authenticated role
+
+```
+aws cognito-identity update-identity-pool \
+  --identity-pool-id IDENTITY_POOL_ID \
+  --identity-pool-name anna_orobie_pool \
+  --allow-unauthenticated-identities \
+  --supported-login-providers accounts.google.com=GOOGLE_CLIENT_ID \
+  --region REGION
+
+aws cognito-identity set-identity-pool-roles \
+  --identity-pool-id IDENTITY_POOL_ID \
+  --roles authenticated=arn:aws:iam::ACCOUNT_ID:role/anna_orobie_pool_auth,unauthenticated=arn:aws:iam::ACCOUNT_ID:role/anna_orobie_pool_unauth \
+  --region REGION
+```
+
+### 4. Fill in `googleClientId` in `aws-config.js`
+
+```js
+window.AWS_CONFIG = {
+  ...
+  googleClientId: "GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+};
+```
+
+The site now shows a "Sign in with Google" button in the footer. Anyone can still view the map and toggle peaks locally; only a signed-in identity can push changes to the shared S3 file. Test that sign-in + sync works end-to-end before doing the next step.
+
+### 5. Cut over: remove write access from the unauthenticated role
+
+Once verified, close the open-write gap by stripping the unauthenticated role's write permission (reads stay public via the bucket policy from step 3 above):
+
+```
+aws iam delete-role-policy --role-name anna_orobie_pool_unauth --policy-name S3PutClimbedStatus
+```
 
 ## Caveats
 

@@ -4,6 +4,8 @@
   var LOCAL_KEY = "anna-orobie-climbed";
   var cfg = window.AWS_CONFIG || {};
   var s3Enabled = !!(cfg.region && cfg.identityPoolId && cfg.bucket);
+  var googleEnabled = !!cfg.googleClientId;
+  var googleIdToken = null;
 
   var climbed = new Set(loadLocal());
   var cellLayers = {};
@@ -125,6 +127,7 @@
   updateProgress();
   syncStatusText(s3Enabled ? "Sincronizzazione..." : "Salvataggio solo su questo dispositivo");
   if (s3Enabled) loadRemote();
+  if (googleEnabled) initGoogleSignIn();
 
   var filters = { group: "all", province: "all" };
   var groupSelect = document.getElementById("filter-group");
@@ -235,7 +238,10 @@
       rebindPopupButton(dot, id);
     }
 
-    if (s3Enabled) saveRemote();
+    if (s3Enabled) {
+      if (!googleEnabled || googleIdToken) saveRemote();
+      else syncStatusText("Accedi con Google per salvare la modifica condivisa");
+    }
   }
 
   function rebindPopupButton(layer, id) {
@@ -305,7 +311,9 @@
     }
     syncStatusText("Salvataggio...");
     AWS.config.region = cfg.region;
-    AWS.config.credentials = new AWS.CognitoIdentityCredentials({ IdentityPoolId: cfg.identityPoolId });
+    var credConfig = { IdentityPoolId: cfg.identityPoolId };
+    if (googleIdToken) credConfig.Logins = { "accounts.google.com": googleIdToken };
+    AWS.config.credentials = new AWS.CognitoIdentityCredentials(credConfig);
     var s3 = new AWS.S3({ apiVersion: "2006-03-01" });
     var body = JSON.stringify({ climbed: Array.from(climbed), updatedAt: new Date().toISOString() });
 
@@ -328,5 +336,57 @@
   function syncStatusText(text) {
     var el = document.getElementById("sync-status");
     if (el) el.textContent = text;
+  }
+
+  function initGoogleSignIn() {
+    if (!window.google || !google.accounts || !google.accounts.id) {
+      setTimeout(initGoogleSignIn, 300);
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: cfg.googleClientId,
+      callback: handleGoogleCredential
+    });
+    renderSignInButton();
+  }
+
+  function renderSignInButton() {
+    var el = document.getElementById("google-signin");
+    if (!el) return;
+    el.innerHTML = "";
+    google.accounts.id.renderButton(el, { theme: "outline", size: "small", type: "standard" });
+  }
+
+  function handleGoogleCredential(response) {
+    googleIdToken = response.credential;
+    showSignedInState(decodeGoogleName(googleIdToken));
+  }
+
+  function decodeGoogleName(token) {
+    try {
+      var payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      return JSON.parse(atob(payload)).name || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function showSignedInState(name) {
+    var el = document.getElementById("google-signin");
+    if (!el) return;
+    el.innerHTML = "";
+    var span = document.createElement("span");
+    span.textContent = (name ? "Accesso come " + name : "Accesso effettuato") + " · ";
+    var signOut = document.createElement("a");
+    signOut.href = "#";
+    signOut.textContent = "Esci";
+    signOut.addEventListener("click", function (e) {
+      e.preventDefault();
+      googleIdToken = null;
+      google.accounts.id.disableAutoSelect();
+      renderSignInButton();
+    });
+    el.appendChild(span);
+    el.appendChild(signOut);
   }
 })();

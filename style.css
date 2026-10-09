@@ -103,6 +103,12 @@ footer {
   padding: 0.4rem;
 }
 
+#google-signin {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+}
+
 /* Leaflet popup styling */
 .peak-popup h3 {
   margin: 0 0 0.25rem;
