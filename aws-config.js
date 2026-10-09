@@ -6,5 +6,5 @@ window.AWS_CONFIG = {
   identityPoolId: "eu-north-1:648fcbcb-f86d-4049-a33f-6e33189112c3",
   bucket: "anna-orobie-climbed",
   key: "climbed-status.json",
-  googleClientId: ""
+  googleClientId: "489987916969-udtp0hgp8k8tmeq758beodu0h6imbhma.apps.googleusercontent.com"
 };
