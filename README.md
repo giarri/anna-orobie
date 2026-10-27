@@ -4,7 +4,7 @@ Interactive map of 98 summits across the Alpi Orobie and Prealpi, spanning the p
 
 Basemap: [OpenTopoMap](https://opentopomap.org) tiles, desaturated to grayscale via CSS (`#map .leaflet-tile-pane { filter: grayscale(...) }` in `style.css`) so a mountain's territory pops in color once it's climbed.
 
-Works offline with `localStorage`; optionally syncs across devices via a public S3 JSON file, written through an unauthenticated Cognito identity (no server, no secrets in the frontend).
+Works offline with `localStorage`; optionally syncs across devices via a public S3 JSON file, written through a Cognito identity (unauthenticated by default, or restricted to Google sign-in — no server, no secrets in the frontend).
 
 ## Contents
 
@@ -13,6 +13,7 @@ Works offline with `localStorage`; optionally syncs across devices via a public 
 - [Project layout](#project-layout)
 - [Data & the cell-generation pipeline](#data--the-cell-generation-pipeline)
 - [Optional: cross-device sync via S3](#optional-cross-device-sync-via-s3)
+- [Optional: per-user files with Google sign-in](#optional-per-user-files-with-google-sign-in)
 - [Caveats](#caveats)
 
 ## Local preview
@@ -160,6 +161,80 @@ window.AWS_CONFIG = {
 ```
 
 Commit and push. The site now reads `https://BUCKET_NAME.s3.REGION.amazonaws.com/climbed-status.json` on load, and writes to it (via temporary Cognito credentials) every time a peak is toggled. If any step above isn't done yet, or `aws-config.js` is left blank, the site silently falls back to `localStorage`-only mode — nothing breaks.
+
+## Optional: per-user files with Google sign-in
+
+Guests keep reading and writing the shared `climbed-status.json` (handy for trying the site out). Anyone who signs in with Google instead gets their own private file at `users/<cognito-identity-id>/climbed-status.json`. IAM enforces the isolation via the `${cognito-identity.amazonaws.com:sub}` policy variable, so a signed-in user can only read/write their own object, never someone else's or the shared one.
+
+### 1. Create a Google OAuth Client ID
+
+This step can't be scripted — Google doesn't expose OAuth client creation via CLI.
+
+- [console.cloud.google.com](https://console.cloud.google.com) → create/select a project
+- APIs & Services → OAuth consent screen → User type **External** → fill in app name + support email → Save
+- APIs & Services → Credentials → Create Credentials → **OAuth client ID** → Application type **Web application**
+- Authorized JavaScript origins: add your GitHub Pages URL (`https://<username>.github.io`) and `http://localhost:8000` for local testing
+- Leave "Authorized redirect URIs" empty (this flow uses Google's inline sign-in button, not a redirect)
+- Copy the **Client ID** (ends in `.apps.googleusercontent.com`) — no secret needed
+
+### 2. Create an authenticated IAM role
+
+```
+aws iam create-role --role-name anna_orobie_pool_auth \
+  --description "Authenticated (Google) Cognito role for anna-orobie climbed-status.json sync" \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": { "Federated": "cognito-identity.amazonaws.com" },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": { "cognito-identity.amazonaws.com:aud": "IDENTITY_POOL_ID" },
+        "ForAnyValue:StringLike": { "cognito-identity.amazonaws.com:amr": "authenticated" }
+      }
+    }]
+  }'
+
+aws iam put-role-policy --role-name anna_orobie_pool_auth \
+  --policy-name S3UserClimbedStatus \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::BUCKET_NAME/users/${cognito-identity.amazonaws.com:sub}/climbed-status.json"
+    }]
+  }'
+```
+
+`"Version": "2012-10-17"` is required for the policy variable to be substituted. The per-user objects aren't covered by the public-read bucket policy, so they stay private; the site reads them with the user's Cognito credentials.
+
+### 3. Register Google with the identity pool and map the authenticated role
+
+```
+aws cognito-identity update-identity-pool \
+  --identity-pool-id IDENTITY_POOL_ID \
+  --identity-pool-name anna_orobie_pool \
+  --allow-unauthenticated-identities \
+  --supported-login-providers accounts.google.com=GOOGLE_CLIENT_ID \
+  --region REGION
+
+aws cognito-identity set-identity-pool-roles \
+  --identity-pool-id IDENTITY_POOL_ID \
+  --roles authenticated=arn:aws:iam::ACCOUNT_ID:role/anna_orobie_pool_auth,unauthenticated=arn:aws:iam::ACCOUNT_ID:role/anna_orobie_pool_unauth \
+  --region REGION
+```
+
+### 4. Fill in `googleClientId` in `aws-config.js`
+
+```js
+window.AWS_CONFIG = {
+  ...
+  googleClientId: "GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+};
+```
+
+The site now shows a "Sign in with Google" button in the header (top right). Guests read and write the shared file; after sign-in the map switches to the user's own file (starting empty the first time), and signing out switches back. Each mode has its own `localStorage` cache, so they don't mix.
 
 ## Caveats
 

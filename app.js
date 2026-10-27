@@ -4,6 +4,11 @@
   var LOCAL_KEY = "anna-orobie-climbed";
   var cfg = window.AWS_CONFIG || {};
   var s3Enabled = !!(cfg.region && cfg.identityPoolId && cfg.bucket);
+  var googleEnabled = !!cfg.googleClientId;
+  var googleIdToken = null;
+  // Guests share cfg.key; a signed-in user gets their own private object under users/<identityId>/.
+  var userKey = null;
+  var credentials = null;
 
   var climbed = new Set(loadLocal());
   var cellLayers = {};
@@ -125,6 +130,7 @@
   updateProgress();
   syncStatusText(s3Enabled ? "Sincronizzazione..." : "Salvataggio solo su questo dispositivo");
   if (s3Enabled) loadRemote();
+  if (googleEnabled) initGoogleSignIn();
 
   var filters = { group: "all", province: "all" };
   var groupSelect = document.getElementById("filter-group");
@@ -253,9 +259,13 @@
     document.getElementById("progress-text").textContent = done + " / " + total + " salite";
   }
 
+  function localKey() {
+    return userKey ? LOCAL_KEY + ":" + userKey : LOCAL_KEY;
+  }
+
   function loadLocal() {
     try {
-      var raw = localStorage.getItem(LOCAL_KEY);
+      var raw = localStorage.getItem(localKey());
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
@@ -264,7 +274,7 @@
 
   function saveLocal() {
     try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(Array.from(climbed)));
+      localStorage.setItem(localKey(), JSON.stringify(Array.from(climbed)));
     } catch (e) { /* ignore */ }
   }
 
@@ -272,30 +282,83 @@
     return "https://" + cfg.bucket + ".s3." + cfg.region + ".amazonaws.com/" + cfg.key;
   }
 
+  function renderAll() {
+    PEAKS.forEach(function (peak) {
+      var layer = cellLayers[peak.id];
+      if (layer) { layer.setStyle(cellStyle(peak)); layer.setPopupContent(makePopupHtml(peak)); }
+      var dot = dotLayers[peak.id];
+      if (dot) dot.setPopupContent(makePopupHtml(peak));
+    });
+    updateProgress();
+    updateSaturatedMask();
+  }
+
+  function applyRemote(data) {
+    if (Array.isArray(data.climbed)) {
+      climbed = new Set(data.climbed);
+      saveLocal();
+      renderAll();
+    }
+    syncStatusText("Sincronizzato");
+  }
+
   function loadRemote() {
+    if (userKey) loadUserFile();
+    else loadSharedFile();
+  }
+
+  function loadSharedFile() {
     fetch(publicUrl() + "?t=" + Date.now(), { cache: "no-store" })
       .then(function (res) {
         if (!res.ok) throw new Error("no remote file yet (" + res.status + ")");
         return res.json();
       })
       .then(function (data) {
-        if (Array.isArray(data.climbed)) {
-          climbed = new Set(data.climbed);
-          saveLocal();
-          PEAKS.forEach(function (peak) {
-            var layer = cellLayers[peak.id];
-            if (layer) { layer.setStyle(cellStyle(peak)); layer.setPopupContent(makePopupHtml(peak)); }
-            var dot = dotLayers[peak.id];
-            if (dot) dot.setPopupContent(makePopupHtml(peak));
-          });
-          updateProgress();
-          updateSaturatedMask();
-        }
-        syncStatusText("Sincronizzato");
+        if (!userKey) applyRemote(data); // ignore if the user signed in meanwhile
       })
       .catch(function () {
-        syncStatusText("Nessun dato condiviso trovato ancora — verrà creato al primo salvataggio");
+        if (!userKey) syncStatusText("Nessun dato condiviso trovato ancora — verrà creato al primo salvataggio");
       });
+  }
+
+  // The user's object is private, so it's read through their Cognito credentials, not the public URL.
+  function loadUserFile() {
+    var key = userKey;
+    var s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials: credentials });
+    s3.getObject({ Bucket: cfg.bucket, Key: key }, function (err, res) {
+      if (userKey !== key) return;
+      if (err) {
+        // Without s3:ListBucket, S3 reports a missing object as 403 rather than 404.
+        if (err.statusCode === 403 || err.statusCode === 404) {
+          syncStatusText("Nessun dato personale ancora — verrà creato al primo salvataggio");
+        } else {
+          console.error("S3 load failed", err);
+          syncStatusText("Sincronizzazione fallita — dati locali");
+        }
+        return;
+      }
+      try {
+        applyRemote(JSON.parse(res.Body.toString()));
+      } catch (e) {
+        syncStatusText("Dati personali non validi — dati locali");
+      }
+    });
+  }
+
+  // The SDK caches the identity ID in localStorage, including a signed-in one from an earlier
+  // session. Used as a guest without the Google token, Cognito rejects it — so on failure,
+  // drop the cached ID and retry, which gets a fresh guest identity.
+  function withCredentials(callback) {
+    if (userKey) return callback(null, credentials);
+    if (!credentials) {
+      AWS.config.region = cfg.region;
+      credentials = new AWS.CognitoIdentityCredentials({ IdentityPoolId: cfg.identityPoolId });
+    }
+    credentials.get(function (err) {
+      if (!err) return callback(null, credentials);
+      credentials.clearCachedId();
+      credentials.get(function (retryErr) { callback(retryErr, credentials); });
+    });
   }
 
   function saveRemote() {
@@ -303,30 +366,127 @@
       syncStatusText("SDK AWS non caricato — salvato solo in locale");
       return;
     }
+    if (googleIdToken && !userKey) {
+      syncStatusText("Accesso in corso — salvato in locale");
+      return;
+    }
     syncStatusText("Salvataggio...");
-    AWS.config.region = cfg.region;
-    AWS.config.credentials = new AWS.CognitoIdentityCredentials({ IdentityPoolId: cfg.identityPoolId });
-    var s3 = new AWS.S3({ apiVersion: "2006-03-01" });
     var body = JSON.stringify({ climbed: Array.from(climbed), updatedAt: new Date().toISOString() });
-
-    s3.putObject({
+    var params = {
       Bucket: cfg.bucket,
-      Key: cfg.key,
+      Key: userKey || cfg.key,
       Body: body,
-      ContentType: "application/json",
-      ACL: "public-read"
-    }, function (err) {
-      if (err) {
-        console.error("S3 sync failed", err);
+      ContentType: "application/json"
+    };
+    if (!userKey) params.ACL = "public-read";
+
+    withCredentials(function (credErr, creds) {
+      if (credErr) {
+        console.error("Cognito credentials failed", credErr);
         syncStatusText("Sincronizzazione fallita — salvato solo in locale");
-      } else {
-        syncStatusText("Sincronizzato");
+        return;
       }
+      var s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials: creds });
+      s3.putObject(params, function (err) {
+        if (err) {
+          console.error("S3 sync failed", err);
+          syncStatusText("Sincronizzazione fallita — salvato solo in locale");
+        } else {
+          syncStatusText("Sincronizzato");
+        }
+      });
     });
   }
 
   function syncStatusText(text) {
     var el = document.getElementById("sync-status");
     if (el) el.textContent = text;
+  }
+
+  function initGoogleSignIn() {
+    if (!window.google || !google.accounts || !google.accounts.id) {
+      setTimeout(initGoogleSignIn, 300);
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: cfg.googleClientId,
+      callback: handleGoogleCredential
+    });
+    renderSignInButton();
+  }
+
+  function renderSignInButton() {
+    var el = document.getElementById("google-signin");
+    if (!el) return;
+    el.innerHTML = "";
+    // Icon-only on narrow screens, where the full button would cover the title.
+    var narrow = window.matchMedia("(max-width: 600px)").matches;
+    google.accounts.id.renderButton(el, { theme: "outline", size: "small", type: narrow ? "icon" : "standard" });
+  }
+
+  function handleGoogleCredential(response) {
+    googleIdToken = response.credential;
+    showSignedInState(decodeGoogleName(googleIdToken));
+    if (!s3Enabled || !window.AWS) return;
+
+    syncStatusText("Sincronizzazione...");
+    AWS.config.region = cfg.region;
+    if (credentials) credentials.clearCachedId();
+    credentials = new AWS.CognitoIdentityCredentials({
+      IdentityPoolId: cfg.identityPoolId,
+      Logins: { "accounts.google.com": googleIdToken }
+    });
+    // Drop any cached guest identity, otherwise Cognito would link this Google login to it.
+    credentials.clearCachedId();
+    credentials.get(function (err) {
+      if (err) {
+        console.error("Cognito sign-in failed", err);
+        syncStatusText("Accesso AWS fallito — salvato solo in locale");
+        return;
+      }
+      userKey = "users/" + credentials.identityId + "/" + cfg.key;
+      climbed = new Set(loadLocal());
+      renderAll();
+      loadRemote();
+    });
+  }
+
+  function handleSignOut() {
+    googleIdToken = null;
+    userKey = null;
+    if (credentials) credentials.clearCachedId();
+    credentials = null;
+    climbed = new Set(loadLocal());
+    renderAll();
+    if (s3Enabled) loadRemote();
+  }
+
+  function decodeGoogleName(token) {
+    try {
+      var payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      return JSON.parse(atob(payload)).name || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function showSignedInState(name) {
+    var el = document.getElementById("google-signin");
+    if (!el) return;
+    el.innerHTML = "";
+    var span = document.createElement("span");
+    span.textContent = (name ? name.split(" ")[0] : "Connesso") + " · ";
+    if (name) span.title = "Accesso come " + name;
+    var signOut = document.createElement("a");
+    signOut.href = "#";
+    signOut.textContent = "Esci";
+    signOut.addEventListener("click", function (e) {
+      e.preventDefault();
+      handleSignOut();
+      google.accounts.id.disableAutoSelect();
+      renderSignInButton();
+    });
+    el.appendChild(span);
+    el.appendChild(signOut);
   }
 })();

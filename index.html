@@ -16,11 +16,14 @@
 </head>
 <body>
 <header>
-  <span id="progress-text" class="progress-badge">0 / 88 salite</span>
+  <div class="header-right">
+    <div id="google-signin"></div>
+    <span id="progress-text" class="progress-badge">0 / 88 salite</span>
+  </div>
   <h1>⛰️ Le Orobie di Anna</h1>
   <div class="actions">
     <button id="filters-toggle-btn" type="button">☰ Filtri</button>
-    <button id="random-peak-btn" type="button">🎲 Scegli una montagna a caso</button>
+    <button id="random-peak-btn" type="button">🎲 peak random peak </button>
   </div>
   <div class="filters" id="filters-panel">
     <select id="filter-group">
@@ -45,6 +48,7 @@
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1692.0.min.js"></script>
 <script src="aws-config.js"></script>
 <script src="data/cells.js"></script>
