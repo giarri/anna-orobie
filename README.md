@@ -236,6 +236,20 @@ window.AWS_CONFIG = {
 
 The site now shows a "Sign in with Google" button in the header (top right). Guests read and write the shared file; after sign-in the map switches to the user's own file (starting empty the first time), and signing out switches back. Each mode has its own `localStorage` cache, so they don't mix.
 
+## Deploy the AWS infra with Terraform
+
+`infra/` defines everything from the two sections above (bucket, CORS, public-read policy, Cognito identity pool + Google provider, both IAM roles and their policies), so the manual console/CLI steps are only needed if you don't use Terraform. The Google OAuth client (step 1 of the Google section) still has to be created by hand; its ID goes in `infra/terraform.tfvars`.
+
+```
+cd infra
+terraform init
+terraform plan    # first run adopts the existing resources via imports.tf; expect no destroys
+terraform apply
+terraform output aws_config   # values for aws-config.js
+```
+
+State is local (`infra/*.tfstate`, git-ignored). `imports.tf` can be deleted after the first successful apply. The non-secret config values are also stored as repo variables (`AWS_REGION`, `S3_BUCKET`, `S3_KEY`, `COGNITO_IDENTITY_POOL_ID`, `GOOGLE_CLIENT_ID`).
+
 ## Caveats
 
 Everything above is best-effort — good enough for a hiking-progress map, not for navigation or precise boundary disputes.
