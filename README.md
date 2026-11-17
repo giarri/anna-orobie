@@ -243,12 +243,21 @@ The site now shows a "Sign in with Google" button in the header (top right). Gue
 ```
 cd infra
 terraform init
-terraform plan    # first run adopts the existing resources via imports.tf; expect no destroys
+terraform plan
 terraform apply
 terraform output aws_config   # values for aws-config.js
 ```
 
-State is local (`infra/*.tfstate`, git-ignored). `imports.tf` can be deleted after the first successful apply. The non-secret config values are also stored as repo variables (`AWS_REGION`, `S3_BUCKET`, `S3_KEY`, `COGNITO_IDENTITY_POOL_ID`, `GOOGLE_CLIENT_ID`).
+State lives in the private, versioned `anna-orobie-tfstate` S3 bucket (native locking). The non-secret config values are also stored as repo variables (`AWS_REGION`, `S3_BUCKET`, `S3_KEY`, `COGNITO_IDENTITY_POOL_ID`, `GOOGLE_CLIENT_ID`).
+
+### CI (`.github/workflows/terraform.yml`)
+
+No AWS keys are stored in GitHub; the workflow uses OIDC to assume IAM roles defined in `infra/ci.tf`:
+
+- **Pull requests** run `terraform plan` as `anna_orobie_gha_plan` (`ReadOnlyAccess`, only assumable from `pull_request` runs of this repo; fork PRs get no OIDC token).
+- **Pushes to `main`** run `terraform apply` as `anna_orobie_gha_apply`, which only the `production` GitHub environment can assume. That environment requires a reviewer's approval and only deploys from `main`. The role can't edit itself or the plan role.
+
+The role ARNs are the repo variables `AWS_PLAN_ROLE_ARN` and `AWS_APPLY_ROLE_ARN`. Changes to `ci.tf` itself (the CI roles) need a local `terraform apply`.
 
 ## Caveats
 
