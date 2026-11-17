@@ -236,6 +236,29 @@ window.AWS_CONFIG = {
 
 The site now shows a "Sign in with Google" button in the header (top right). Guests read and write the shared file; after sign-in the map switches to the user's own file (starting empty the first time), and signing out switches back. Each mode has its own `localStorage` cache, so they don't mix.
 
+## Deploy the AWS infra with Terraform
+
+`infra/` defines everything from the two sections above (bucket, CORS, public-read policy, Cognito identity pool + Google provider, both IAM roles and their policies), so the manual console/CLI steps are only needed if you don't use Terraform. The Google OAuth client (step 1 of the Google section) still has to be created by hand; its ID goes in `infra/terraform.tfvars`.
+
+```
+cd infra
+terraform init
+terraform plan
+terraform apply
+terraform output aws_config   # values for aws-config.js
+```
+
+State lives in the private, versioned `anna-orobie-tfstate` S3 bucket (native locking). The non-secret config values are also stored as repo variables (`AWS_REGION`, `S3_BUCKET`, `S3_KEY`, `COGNITO_IDENTITY_POOL_ID`, `GOOGLE_CLIENT_ID`).
+
+### CI (`.github/workflows/terraform.yml`)
+
+No AWS keys are stored in GitHub; the workflow uses OIDC to assume IAM roles defined in `infra/ci.tf`:
+
+- **Pull requests** run `terraform plan` as `anna_orobie_gha_plan` (`ReadOnlyAccess`, only assumable from `pull_request` runs of this repo; fork PRs get no OIDC token).
+- **Pushes to `main`** run `terraform apply` as `anna_orobie_gha_apply`, which only the `production` GitHub environment can assume. That environment requires a reviewer's approval and only deploys from `main`. The role can't edit itself or the plan role.
+
+The role ARNs are the repo variables `AWS_PLAN_ROLE_ARN` and `AWS_APPLY_ROLE_ARN`. Changes to `ci.tf` itself (the CI roles) need a local `terraform apply`.
+
 ## Caveats
 
 Everything above is best-effort — good enough for a hiking-progress map, not for navigation or precise boundary disputes.
