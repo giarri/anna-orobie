@@ -7,6 +7,21 @@ import {
 }
 
 import {
+  to = aws_s3_bucket_versioning.climbed
+  id = "anna-orobie-climbed"
+}
+
+import {
+  to = aws_s3_bucket_lifecycle_configuration.climbed
+  id = "anna-orobie-climbed"
+}
+
+import {
+  to = aws_s3_bucket_server_side_encryption_configuration.climbed
+  id = "anna-orobie-climbed"
+}
+
+import {
   to = aws_s3_bucket_ownership_controls.climbed
   id = "anna-orobie-climbed"
 }

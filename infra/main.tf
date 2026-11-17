@@ -8,6 +8,40 @@ resource "aws_s3_bucket" "climbed" {
   bucket = var.bucket
 }
 
+resource "aws_s3_bucket_versioning" "climbed" {
+  bucket = aws_s3_bucket.climbed.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "climbed" {
+  bucket = aws_s3_bucket.climbed.id
+
+  # Versioning keeps history of the climbed list; drop old versions after a year.
+  depends_on = [aws_s3_bucket_versioning.climbed]
+
+  rule {
+    id     = "keep one year"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 365
+    }
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "climbed" {
+  bucket = aws_s3_bucket.climbed.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 resource "aws_s3_bucket_ownership_controls" "climbed" {
   bucket = aws_s3_bucket.climbed.id
 
