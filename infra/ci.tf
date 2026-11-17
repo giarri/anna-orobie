@@ -4,8 +4,11 @@ data "aws_caller_identity" "current" {}
 
 locals {
   account_id = data.aws_caller_identity.current.account_id
-  repo       = "giarri/anna-orobie"
   oidc_host  = "token.actions.githubusercontent.com"
+
+  # This repo uses GitHub's immutable OIDC subject (owner@id/repo@id), which survives
+  # renames/transfers; see `gh api repos/giarri/anna-orobie/actions/oidc/customization/sub`.
+  oidc_sub_prefix = "repo:giarri@100694500/anna-orobie@1319643293"
 }
 
 # --- Remote state -----------------------------------------------------------
@@ -73,7 +76,7 @@ data "aws_iam_policy_document" "plan_assume" {
     condition {
       test     = "StringEquals"
       variable = "${local.oidc_host}:sub"
-      values   = ["repo:${local.repo}:pull_request"]
+      values   = ["${local.oidc_sub_prefix}:pull_request"]
     }
   }
 }
@@ -110,7 +113,7 @@ data "aws_iam_policy_document" "apply_assume" {
     condition {
       test     = "StringEquals"
       variable = "${local.oidc_host}:sub"
-      values   = ["repo:${local.repo}:environment:production"]
+      values   = ["${local.oidc_sub_prefix}:environment:production"]
     }
   }
 }
